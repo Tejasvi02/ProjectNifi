@@ -1,0 +1,34 @@
+---
+- name: Install Apache NiFi 1.26.0 under /home/ubuntu/nifi_infra_creation
+  hosts: ec2
+  become: yes
+  vars:
+    nifi_version: "1.26.0"
+    nifi_root: "/home/ubuntu/nifi_infra_creation"
+    nifi_dir: "{{ nifi_root }}/nifi-{{ nifi_version }}"
+    nifi_tar: "/tmp/nifi-{{ nifi_version }}.tar.gz"
+  tasks:
+    - file: path="{{ nifi_root }}" state=directory owner=ubuntu group=ubuntu mode=0755
+    - get_url:
+        url: "https://archive.apache.org/dist/nifi/{{ nifi_version }}/nifi-{{ nifi_version }}-bin.tar.gz"
+        dest: "{{ nifi_tar }}"
+    - unarchive: { src: "{{ nifi_tar }}", dest: "{{ nifi_root }}", remote_src: yes, creates: "{{ nifi_dir }}/bin/nifi.sh" }
+    - file: path="{{ nifi_dir }}" state=directory owner=ubuntu group=ubuntu recurse=yes
+    - copy:
+        dest: /etc/systemd/system/nifi.service
+        mode: "0644"
+        content: |
+          [Unit]
+          Description=Apache NiFi
+          After=network.target
+          [Service]
+          Type=simple
+          User=ubuntu
+          Group=ubuntu
+          ExecStart={{ nifi_dir }}/bin/nifi.sh run
+          ExecStop={{ nifi_dir }}/bin/nifi.sh stop
+          Restart=on-failure
+          LimitNOFILE=65535
+          [Install]
+          WantedBy=multi-user.target
+    - systemd: daemon_reload=yes

@@ -1,0 +1,7 @@
+---
+- name: Install Java 17 on Ubuntu
+  hosts: ec2
+  become: yes
+  tasks:
+    - apt: update_cache=yes
+    - apt: name=openjdk-17-jdk state=present

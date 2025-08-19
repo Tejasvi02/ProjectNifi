@@ -1,0 +1,26 @@
+---
+- name: Update NiFi properties (HTTP only)
+  hosts: ec2
+  become: yes
+  vars:
+    nifi_properties_file: /home/ubuntu/nifi_infra_creation/nifi-1.26.0/conf/nifi.properties
+  tasks:
+    - lineinfile: { path: "{{ nifi_properties_file }}", regexp: '^nifi.web.http.host=', line: 'nifi.web.http.host=0.0.0.0', create: yes }
+    - lineinfile: { path: "{{ nifi_properties_file }}", regexp: '^nifi.web.http.port=', line: 'nifi.web.http.port=8443',  create: yes }
+    - lineinfile: { path: "{{ nifi_properties_file }}", regexp: '^nifi.web.https.host=', line: '#nifi.web.https.host=127.0.0.1', backrefs: yes, create: yes }
+    - lineinfile: { path: "{{ nifi_properties_file }}", regexp: '^nifi.web.https.port=', line: '#nifi.web.https.port=8443',  backrefs: yes, create: yes }
+    - lineinfile: { path: "{{ nifi_properties_file }}", regexp: '^nifi.remote.input.secure=', line: 'nifi.remote.input.secure=false', backrefs: yes, create: yes }
+    - loop:
+        - nifi.security.keystore
+        - nifi.security.truststore
+        - nifi.security.keystoreType
+        - nifi.security.keystorePasswd
+        - nifi.security.keyPasswd
+        - nifi.security.truststoreType
+        - nifi.security.truststorePasswd
+      lineinfile:
+        path: "{{ nifi_properties_file }}"
+        regexp: '^{{ item | regex_escape() }}='
+        line: '{{ item }}='
+        create: yes
+        backrefs: yes
