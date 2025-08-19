@@ -6,15 +6,47 @@
     nifi_version: "1.26.0"
     nifi_root: "/home/ubuntu/nifi_infra_creation"
     nifi_dir: "{{ nifi_root }}/nifi-{{ nifi_version }}"
-    nifi_tar: "/tmp/nifi-{{ nifi_version }}.tar.gz"
+    nifi_zip: "/tmp/nifi-{{ nifi_version }}-bin.zip"
+    nifi_url: "https://archive.apache.org/dist/nifi/{{ nifi_version }}/nifi-{{ nifi_version }}-bin.zip"
+
   tasks:
-    - file: path="{{ nifi_root }}" state=directory owner=ubuntu group=ubuntu mode=0755
-    - get_url:
-        url: "https://archive.apache.org/dist/nifi/{{ nifi_version }}/nifi-{{ nifi_version }}-bin.tar.gz"
-        dest: "{{ nifi_tar }}"
-    - unarchive: { src: "{{ nifi_tar }}", dest: "{{ nifi_root }}", remote_src: yes, creates: "{{ nifi_dir }}/bin/nifi.sh" }
-    - file: path="{{ nifi_dir }}" state=directory owner=ubuntu group=ubuntu recurse=yes
-    - copy:
+    - name: Ensure unzip is present (required for extracting ZIPs)
+      apt:
+        name: unzip
+        state: present
+        update_cache: yes
+
+    - name: Ensure root dir exists
+      file:
+        path: "{{ nifi_root }}"
+        state: directory
+        owner: ubuntu
+        group: ubuntu
+        mode: "0755"
+
+    - name: Download NiFi {{ nifi_version }} ZIP
+      get_url:
+        url: "{{ nifi_url }}"
+        dest: "{{ nifi_zip }}"
+        mode: "0644"
+
+    - name: Extract NiFi ZIP
+      unarchive:
+        src: "{{ nifi_zip }}"
+        dest: "{{ nifi_root }}"
+        remote_src: yes
+        creates: "{{ nifi_dir }}/bin/nifi.sh"
+
+    - name: Fix ownership
+      file:
+        path: "{{ nifi_dir }}"
+        state: directory
+        owner: ubuntu
+        group: ubuntu
+        recurse: yes
+
+    - name: Install systemd unit
+      copy:
         dest: /etc/systemd/system/nifi.service
         mode: "0644"
         content: |
@@ -31,4 +63,7 @@
           LimitNOFILE=65535
           [Install]
           WantedBy=multi-user.target
-    - systemd: daemon_reload=yes
+
+    - name: Reload systemd
+      systemd:
+        daemon_reload: yes
