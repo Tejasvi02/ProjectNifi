@@ -1,5 +1,5 @@
 ---
-- name: Update NiFi properties (HTTP only) and restart
+- name: Update NiFi properties (HTTP only) and restart if needed
   hosts: ec2
   become: yes
 
@@ -63,6 +63,14 @@
         - nifi.security.truststorePasswd
       notify: restart nifi
 
+    # Ensure it's at least running even if nothing changed
+    - name: Ensure NiFi is running
+      systemd:
+        name: nifi
+        enabled: yes
+        state: started
+
+    # Give it time to bind
     - name: Wait until NiFi HTTP port responds
       wait_for:
         host: 127.0.0.1
@@ -76,4 +84,5 @@
         name: nifi
         enabled: yes
         state: restarted
+
 

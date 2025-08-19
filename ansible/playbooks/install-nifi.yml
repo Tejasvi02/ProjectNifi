@@ -2,6 +2,7 @@
 - name: Install Apache NiFi 1.26.0 under /home/ubuntu/nifi_infra_creation
   hosts: ec2
   become: yes
+
   vars:
     nifi_version: "1.26.0"
     nifi_root: "/home/ubuntu/nifi_infra_creation"
@@ -24,11 +25,16 @@
         group: ubuntu
         mode: "0755"
 
-    - name: Download NiFi {{ nifi_version }} ZIP
+    - name: Download NiFi {{ nifi_version }} ZIP (with retries)
       get_url:
         url: "{{ nifi_url }}"
         dest: "{{ nifi_zip }}"
         mode: "0644"
+        timeout: 1800
+      register: dl
+      until: dl is succeeded
+      retries: 5
+      delay: 10
 
     - name: Extract NiFi ZIP
       unarchive:
@@ -53,6 +59,7 @@
           [Unit]
           Description=Apache NiFi
           After=network.target
+
           [Service]
           Type=simple
           User=ubuntu
@@ -61,9 +68,16 @@
           ExecStop={{ nifi_dir }}/bin/nifi.sh stop
           Restart=on-failure
           LimitNOFILE=65535
+
           [Install]
           WantedBy=multi-user.target
 
     - name: Reload systemd
       systemd:
         daemon_reload: yes
+
+    - name: Enable and start NiFi
+      systemd:
+        name: nifi
+        enabled: yes
+        state: started
