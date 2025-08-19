@@ -2,9 +2,7 @@ pipeline {
   agent any
   stages {
     stage('Checkout') {
-      stage('Checkout') {
-        steps { checkout scm }   // uses the SCM you set in the job UI (and its credentials)
-        }
+      steps { checkout scm }   // uses the SCM you set in the job UI (and its credentials)
     }
     stage('Terraform Apply') {
       steps {
