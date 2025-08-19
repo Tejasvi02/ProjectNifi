@@ -30,17 +30,21 @@ pipeline {
       }
     }
     stage('Ansible: Java + NiFi + Props') {
-        steps {
-            sh '''
-            export ANSIBLE_HOST_KEY_CHECKING=False
-            ansible --version
+  steps {
+    withCredentials([sshUserPrivateKey(credentialsId: 'nifi-ec2-ssh', keyFileVariable: 'EC2_SSH_KEY')]) {
+      sh '''
+        export ANSIBLE_HOST_KEY_CHECKING=False
+        export ANSIBLE_PRIVATE_KEY_FILE="$EC2_SSH_KEY"
 
-            ansible-playbook -i inventory.ini ansible/playbooks/install-java.yml
-            ansible-playbook -i inventory.ini ansible/playbooks/install-nifi.yml
-            ansible-playbook -i inventory.ini ansible/playbooks/update-nifi-properties.yml
-            '''
-        }
+        ansible --version
+        ansible-playbook -i inventory.ini ansible/playbooks/install-java.yml
+        ansible-playbook -i inventory.ini ansible/playbooks/install-nifi.yml
+        ansible-playbook -i inventory.ini ansible/playbooks/update-nifi-properties.yml
+      '''
     }
+  }
+}
+
 
     stage('Smoke Test') {
       steps {
