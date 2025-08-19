@@ -2,15 +2,9 @@ pipeline {
   agent any
   stages {
     stage('Checkout') {
-      steps {
-        checkout([$class: 'GitSCM',
-          branches: [[name: '*/main']],
-          userRemoteConfigs: [[
-            url: 'https://github.com/<you>/<repo>.git',
-            credentialsId: 'github-pat'   // remove if repo is public
-          ]]
-        ])
-      }
+      stage('Checkout') {
+        steps { checkout scm }   // uses the SCM you set in the job UI (and its credentials)
+        }
     }
     stage('Terraform Apply') {
       steps {
