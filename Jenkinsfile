@@ -30,17 +30,18 @@ pipeline {
       }
     }
     stage('Ansible: Java + NiFi + Props') {
-      steps {
-        sh '''
-          ansible-playbook -i inventory.ini ansible/playbooks/install-java.yml \
-            -e 'ansible_ssh_common_args=-o StrictHostKeyChecking=no'
-          ansible-playbook -i inventory.ini ansible/playbooks/install-nifi.yml \
-            -e 'ansible_ssh_common_args=-o StrictHostKeyChecking=no'
-          ansible-playbook -i inventory.ini ansible/playbooks/update-nifi-properties.yml \
-            -e 'ansible_ssh_common_args=-o StrictHostKeyChecking=no'
-        '''
-      }
+        steps {
+            sh '''
+            export ANSIBLE_HOST_KEY_CHECKING=False
+            ansible --version
+
+            ansible-playbook -i inventory.ini ansible/playbooks/install-java.yml
+            ansible-playbook -i inventory.ini ansible/playbooks/install-nifi.yml
+            ansible-playbook -i inventory.ini ansible/playbooks/update-nifi-properties.yml
+            '''
+        }
     }
+
     stage('Smoke Test') {
       steps {
         sh '''
