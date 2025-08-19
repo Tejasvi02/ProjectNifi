@@ -1,16 +1,59 @@
 ---
-- name: Update NiFi properties (HTTP only)
+- name: Update NiFi properties (HTTP only) and restart
   hosts: ec2
   become: yes
+
   vars:
     nifi_properties_file: /home/ubuntu/nifi_infra_creation/nifi-1.26.0/conf/nifi.properties
+
   tasks:
-    - lineinfile: { path: "{{ nifi_properties_file }}", regexp: '^nifi.web.http.host=', line: 'nifi.web.http.host=0.0.0.0', create: yes }
-    - lineinfile: { path: "{{ nifi_properties_file }}", regexp: '^nifi.web.http.port=', line: 'nifi.web.http.port=8443',  create: yes }
-    - lineinfile: { path: "{{ nifi_properties_file }}", regexp: '^nifi.web.https.host=', line: '#nifi.web.https.host=127.0.0.1', backrefs: yes, create: yes }
-    - lineinfile: { path: "{{ nifi_properties_file }}", regexp: '^nifi.web.https.port=', line: '#nifi.web.https.port=8443',  backrefs: yes, create: yes }
-    - lineinfile: { path: "{{ nifi_properties_file }}", regexp: '^nifi.remote.input.secure=', line: 'nifi.remote.input.secure=false', backrefs: yes, create: yes }
-    - loop:
+    - name: Set HTTP host to 0.0.0.0
+      lineinfile:
+        path: "{{ nifi_properties_file }}"
+        regexp: '^nifi.web.http.host='
+        line: 'nifi.web.http.host=0.0.0.0'
+        create: yes
+      notify: restart nifi
+
+    - name: Set HTTP port to 8443
+      lineinfile:
+        path: "{{ nifi_properties_file }}"
+        regexp: '^nifi.web.http.port='
+        line: 'nifi.web.http.port=8443'
+        create: yes
+      notify: restart nifi
+
+    - name: Comment out HTTPS host
+      lineinfile:
+        path: "{{ nifi_properties_file }}"
+        regexp: '^nifi.web.https.host='
+        line: '#nifi.web.https.host=127.0.0.1'
+        create: yes
+      notify: restart nifi
+
+    - name: Comment out HTTPS port
+      lineinfile:
+        path: "{{ nifi_properties_file }}"
+        regexp: '^nifi.web.https.port='
+        line: '#nifi.web.https.port=8443'
+        create: yes
+      notify: restart nifi
+
+    - name: Disable secure remote input
+      lineinfile:
+        path: "{{ nifi_properties_file }}"
+        regexp: '^nifi.remote.input.secure='
+        line: 'nifi.remote.input.secure=false'
+        create: yes
+      notify: restart nifi
+
+    - name: Clear NiFi security keystore/truststore fields
+      lineinfile:
+        path: "{{ nifi_properties_file }}"
+        regexp: '^{{ item | regex_escape() }}='
+        line: '{{ item }}='
+        create: yes
+      loop:
         - nifi.security.keystore
         - nifi.security.truststore
         - nifi.security.keystoreType
@@ -18,9 +61,19 @@
         - nifi.security.keyPasswd
         - nifi.security.truststoreType
         - nifi.security.truststorePasswd
-      lineinfile:
-        path: "{{ nifi_properties_file }}"
-        regexp: '^{{ item | regex_escape() }}='
-        line: '{{ item }}='
-        create: yes
-        backrefs: yes
+      notify: restart nifi
+
+    - name: Wait until NiFi HTTP port responds
+      wait_for:
+        host: 127.0.0.1
+        port: 8443
+        delay: 5
+        timeout: 180
+
+  handlers:
+    - name: restart nifi
+      systemd:
+        name: nifi
+        enabled: yes
+        state: restarted
+
